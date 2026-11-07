@@ -8,6 +8,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,sans-serif;padding:12px}
 h1{margin:0 0 4px;color:var(--ac);font-family:monospace}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0}
 nav button,.b{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap;font:inherit}
 nav button.on,.b.go{border-color:var(--ac);color:var(--ac)}
@@ -21,10 +22,19 @@ pre{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8p
 .bars{display:flex;gap:3px;align-items:flex-end;height:80px;margin:8px 0}
 .bars i{flex:1;background:var(--ac);min-height:2px}
 small{color:var(--mut)}
+#pm{display:none;border:1px solid var(--ac);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--card)}
+#pm.on{display:block}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--bd);padding:6px;text-align:left;vertical-align:top;font-size:14px}
+th{color:var(--ac)}
 </style></head><body>
-<h1>CYBERLAB</h1>
+<div class="top"><h1>CYBERLAB</h1><button class="b go" id="pstart">▶ Present</button></div>
 <small>Simulated attacks. Runs locally. Nothing real is attacked or collected.</small>
 <nav id="nav"></nav>
+
+<div id="pm"><small id="pc"></small><p id="pt"></p><p id="pd"></p>
+<button class="b" id="pb">◀ Back</button> <button class="b go" id="pn">Next ▶</button> <button class="b red" id="px">Exit</button></div>
 
 <section id="phish"><h3>🎣 Phishing Lab</h3>
 <div id="pq"></div><div id="pf"></div><p id="ps"></p>
@@ -83,16 +93,54 @@ Attacker rate: <b id="dv">0</b> req/s
 <div class="bars" id="db"></div><div id="dt"></div>
 <div class="fix">🛡️ Fix: rate limiting, traffic monitoring and alerts, CDN or DDoS protection, caching, autoscaling.</div></section>
 
+<section id="def"><h3>🛡️ Defence Lab</h3>
+<div class="tw"><table>
+<tr><th>Attack</th><th>What the hacker does</th><th>How engineers stop it</th></tr>
+<tr><td>🎣 Phishing</td><td>Fake email and login page steal credentials</td><td>Check the real domain, MFA, user training</td></tr>
+<tr><td>🔐 Password</td><td>Dictionary and brute-force guessing</td><td>Long passphrases, unique passwords, MFA</td></tr>
+<tr><td>💉 SQL Injection</td><td>Input rewrites the SQL query</td><td>Parameterized queries, least privilege</td></tr>
+<tr><td>🧪 XSS</td><td>Script injected into a page runs in visitors’ browsers</td><td>Escape output, Content-Security-Policy</td></tr>
+<tr><td>📶 Network</td><td>Sniffs unencrypted traffic on open Wi-Fi</td><td>HTTPS, VPN, WPA3</td></tr>
+<tr><td>💻 Ransomware</td><td>Encrypts files and demands payment</td><td>Offline backups, patching, endpoint protection</td></tr>
+<tr><td>🚨 DoS</td><td>Floods the server with requests</td><td>Rate limiting, monitoring, CDN</td></tr>
+</table></div>
+<div class="fix">Takeaway: attackers exploit trust and mistakes. Engineers defend in layers.</div></section>
+
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const mods=[["phish","🎣 Phishing"],["pass","🔐 Password"],["sqli","💉 SQLi"],["xss","🧪 XSS"],["net","📶 Network"],["ran","💻 Ransomware"],["dos","🚨 DoS"]];
+const mods=[["phish","🎣 Phishing"],["pass","🔐 Password"],["sqli","💉 SQLi"],["xss","🧪 XSS"],["net","📶 Network"],["ran","💻 Ransomware"],["dos","🚨 DoS"],["def","🛡️ Defence"]];
 mods.forEach(([id,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.id=id;b.onclick=()=>show(id);$("#nav").append(b)});
 function show(id){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===id));
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
 }
 show("phish");
+
+/* PRESENTATION MODE */
+const S=[
+ {id:"phish",say:"Phishing is the most common attack: a fake email sends you to a fake login page.",d:"Tap Legit or Phishing for each email and read the explanation."},
+ {id:"pass",say:"Weak passwords fall in seconds.",d:"Type 123456 and run the dictionary attack. Then type a long passphrase and compare the crack times."},
+ {id:"sqli",say:"The login builds its query from raw text, so the attacker rewrites the query.",d:"Untick Secure mode, username admin'-- , password 1, tap Login. Then tick Secure mode and repeat."},
+ {id:"xss",say:"A comment box can run an attacker’s script in every visitor’s browser.",d:"Post <img src=x onerror=alert(1)> . Then tick Secure mode and post it again."},
+ {id:"net",say:"On open Wi-Fi, an attacker can read unencrypted traffic.",d:"Send the login on open Wi-Fi without HTTPS. Tick HTTPS and send again. Untick open Wi-Fi and send."},
+ {id:"ran",say:"Ransomware locks your files, and backups are the way back.",d:"Tap Infect, then Restore (no backup, files lost). Reset, then Backup, Infect, Restore."},
+ {id:"dos",say:"Too many requests knock a server out for real users.",d:"Drag the attacker rate to 300, then tick Rate limiting."},
+ {id:"def",say:"Attackers exploit trust and mistakes. Engineers defend in layers.",d:"Close with this table, then take questions."}
+];
+let pi=-1;
+function pg(){
+  const s=S[pi];show(s.id);
+  $("#pc").textContent="Step "+(pi+1)+" of "+S.length;
+  $("#pt").innerHTML="<b>Say:</b> "+esc(s.say);
+  $("#pd").innerHTML="<b>Do:</b> "+esc(s.d);
+  $("#pn").textContent=pi==S.length-1?"Finish":"Next ▶";
+}
+function pe(){pi=-1;$("#pm").classList.remove("on")}
+$("#pstart").onclick=()=>{pi=0;$("#pm").classList.add("on");pg()};
+$("#pn").onclick=()=>{if(pi>=S.length-1){pe();return}pi++;pg()};
+$("#pb").onclick=()=>{if(pi>0){pi--;pg()}};
+$("#px").onclick=pe;
 
 /* PHISHING */
 const R=[
