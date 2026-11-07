@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CYBERLAB</title>
+<style>
+:root{--bg:#0b1118;--card:#121b26;--tx:#d7e3ee;--mut:#7f93a6;--ac:#2dff9a;--bad:#ff4d6d;--bd:#223244}
+@media(prefers-color-scheme:light){:root{--bg:#f3f7fa;--card:#fff;--tx:#14212e;--mut:#51657a;--ac:#0a7f4f;--bad:#c4203f;--bd:#cfdae4}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,sans-serif;padding:12px}
+h1{margin:0 0 4px;color:var(--ac);font-family:monospace}
+nav{display:flex;gap:6px;overflow-x:auto;padding:8px 0}
+nav button,.b{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap;font:inherit}
+nav button.on,.b.go{border-color:var(--ac);color:var(--ac)}
+.b.red{border-color:var(--bad);color:var(--bad)}
+section{display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+section.on{display:block}
+input[type=text],textarea{width:100%;padding:8px;margin:4px 0;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;font:inherit}
+pre{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;font:13px monospace;min-height:20px;margin:6px 0}
+.fix{border-left:3px solid var(--ac);padding-left:10px;color:var(--mut);margin-top:12px}
+.bad{color:var(--bad)}.ok{color:var(--ac)}
+.bars{display:flex;gap:3px;align-items:flex-end;height:80px;margin:8px 0}
+.bars i{flex:1;background:var(--ac);min-height:2px}
+small{color:var(--mut)}
+</style></head><body>
+<h1>CYBERLAB</h1>
+<small>Simulated attacks. Runs locally. Nothing real is attacked or collected.</small>
+<nav id="nav"></nav>
+
+<section id="phish"><h3>🎣 Phishing Lab</h3>
+<div id="pq"></div><div id="pf"></div><p id="ps"></p>
+<div class="fix">🛡️ Fix: read the real domain (the part right before the first /), distrust urgency, type the portal address yourself, enable MFA.</div></section>
+
+<section id="pass"><h3>🔐 Password Lab</h3>
+<small>Use sample passwords only, never your real one.</small>
+<input type="text" id="pw" placeholder="type a sample password">
+<pre id="po"></pre>
+<button class="b go" id="pwgo">Run dictionary attack</button>
+<pre id="pl"></pre>
+<div class="fix">🛡️ Fix: long passphrases, a unique password per site, a password manager, MFA. Reuse is dangerous because one leak opens every account.</div></section>
+
+<section id="sqli"><h3>💉 SQL Injection Lab</h3>
+<small>Valid login: student / pass123. Try: <b>admin'--</b> or password <b>' OR '1'='1</b></small>
+<input type="text" id="su" placeholder="username">
+<input type="text" id="sp" placeholder="password">
+<label><input type="checkbox" id="ss"> Secure mode (parameterized query)</label><br>
+<button class="b go" id="sg">Login</button>
+<pre id="sq"></pre><pre id="sr"></pre>
+<div class="fix">🛡️ Fix: never build SQL by joining strings. Use db.query("... WHERE user = ? AND pass = ?", [u, p]), hash passwords, give the DB account least privilege.</div></section>
+
+<section id="xss"><h3>🧪 XSS Lab</h3>
+<small>Try a comment like: &lt;img src=x onerror=alert(1)&gt;</small>
+<textarea id="xc" rows="2" placeholder="write a comment"></textarea>
+<label><input type="checkbox" id="xs"> Secure mode (escape output)</label><br>
+<button class="b go" id="xp">Post comment</button>
+<p id="xb"></p><pre id="xl"></pre>
+<div class="fix">🛡️ Fix: vulnerable code does el.innerHTML = comment. Safe code does el.textContent = comment. Also add a Content-Security-Policy and validate input.</div></section>
+
+<section id="ran"><h3>💻 Ransomware Lab</h3>
+<small>Disposable fake files only. Try infecting with and without a backup.</small>
+<div id="rf"></div>
+<button class="b go" id="rb">1. Backup</button>
+<button class="b red" id="ri">2. Infect</button>
+<button class="b" id="rd">Try decrypt</button>
+<button class="b go" id="rs">Restore backup</button>
+<button class="b" id="rx">Reset</button>
+<div class="fix">🛡️ Fix: offline backups made BEFORE the attack, patching, email filtering, endpoint protection, least privilege. Paying never guarantees recovery.</div></section>
+
+<section id="dos"><h3>🚨 DoS Lab</h3>
+<small>Local simulation. Server capacity is 60 req/s, legit users send 10 req/s.</small><br>
+Attacker rate: <b id="dv">0</b> req/s
+<input type="range" id="dr" min="0" max="500" value="0" style="width:100%">
+<label><input type="checkbox" id="dl"> Rate limiting (max 5 req/s per IP)</label>
+<div class="bars" id="db"></div><div id="dt"></div>
+<div class="fix">🛡️ Fix: rate limiting, traffic monitoring and alerts, CDN or DDoS protection, caching, autoscaling.</div></section>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const mods=[["phish","🎣 Phishing"],["pass","🔐 Password"],["sqli","💉 SQLi"],["xss","🧪 XSS"],["ran","💻 Ransomware"],["dos","🚨 DoS"]];
+mods.forEach(([id,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.id=id;b.onclick=()=>show(id);$("#nav").append(b)});
+function show(id){
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===id));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
+}
+show("phish");
+
+/* PHISHING */
+const R=[
+ {f:"portal-support@myuni-edu.ng.verify-login.com",s:"Your student portal expires in 24h, click now",u:"http://myuni-edu.ng.verify-login.com/login",k:true,w:"The real domain is verify-login.com. myuni-edu.ng is just a subdomain. Also urgent tone and no HTTPS."},
+ {f:"registrar@myuni.edu.ng",s:"Course registration opens Monday",u:"https://portal.myuni.edu.ng/login",k:false,w:"Domain ends in myuni.edu.ng, uses HTTPS, no pressure."},
+ {f:"it-helpdesk@myuni.edu.ng",s:"URGENT: reset your password immediately",u:"https://myuni-edu.ng/reset",k:true,w:"myuni-edu.ng uses a hyphen instead of a dot: a lookalike domain. Urgency is a red flag."},
+ {f:"hod@myuni.edu.ng",s:"Test timetable",u:"https://myuni.edu.ng/dept/timetable.pdf",k:false,w:"Correct domain, expected content, HTTPS."}
+];
+let ri=0,sc=0;
+function pr(){
+  if(ri>=R.length){$("#pq").innerHTML="";$("#pf").innerHTML="";$("#ps").textContent="Final score: "+sc+"/"+R.length;return}
+  const r=R[ri];
+  $("#pq").innerHTML="<pre>From: "+esc(r.f)+"\nSubject: "+esc(r.s)+"\nLink: "+esc(r.u)+"</pre>";
+  $("#pf").innerHTML='<button class="b go" onclick="phAns(false)">Legit</button> <button class="b red" onclick="phAns(true)">Phishing</button>';
+}
+function phAns(g){
+  const r=R[ri],c=g===r.k;if(c)sc++;
+  $("#pf").innerHTML="";
+  $("#ps").innerHTML=(c?'<span class="ok">Correct. </span>':'<span class="bad">Wrong. </span>')+esc(r.w)+' <button class="b" onclick="ri++;$(\'#ps\').textContent=\'\';pr()">Next</button>';
+}
+pr();
+
+/* PASSWORD */
+const CM="123456,password,12345678,qwerty,111111,iloveyou,admin,welcome,123456789,abc123,letmein,monkey,football,pass123,nigeria,chelsea,arsenal,test123,000000,1234".split(",");
+function ft(s){
+  if(s<1)return"instantly";
+  const u=[[31536000,"years"],[86400,"days"],[3600,"hours"],[60,"minutes"],[1,"seconds"]];
+  for(const[n,l]of u)if(s>=n)return(s/n>1e9?">1 billion":Math.round(s/n).toLocaleString())+" "+l;
+}
+$("#pw").oninput=()=>{
+  const p=$("#pw").value;if(!p){$("#po").textContent="";return}
+  let n=0;if(/[a-z]/.test(p))n+=26;if(/[A-Z]/.test(p))n+=26;if(/\d/.test(p))n+=10;if(/[^\w]/.test(p))n+=33;
+  const t=Math.pow(n,p.length)/2e10;
+  $("#po").textContent=CM.includes(p.toLowerCase())?"In the common-password list: cracked instantly":"Length "+p.length+", character set "+n+"\nBrute force at 10 billion guesses/sec: "+ft(t);
+};
+$("#pwgo").onclick=()=>{
+  const p=$("#pw").value.toLowerCase(),L=$("#pl");L.textContent="";let i=0;
+  const iv=setInterval(()=>{
+    if(i>=CM.length){L.textContent+="Not in dictionary: attacker must brute force (see time above)\n";clearInterval(iv);return}
+    L.textContent+="trying "+CM[i]+"\n";
+    if(CM[i]===p){L.textContent+="CRACKED after "+(i+1)+" tries\n";clearInterval(iv)}
+    i++;
+  },150);
+};
+
+/* SQL INJECTION (simulated parser, no real database) */
+const U={admin:"S3cret!x",student:"pass123"};
+$("#sg").onclick=()=>{
+  const u=$("#su").value,p=$("#sp").value,s=$("#ss").checked;
+  $("#sq").innerHTML=s
+    ?"SELECT * FROM users WHERE user = ? AND pass = ?\nparams: "+esc(JSON.stringify([u,p]))
+    :"SELECT * FROM users WHERE user = '"+esc(u)+"' AND pass = '"+esc(p)+"'";
+  const taut=/'\s*or\s+['"]?(\w+)['"]?\s*=\s*['"]?\1/i;
+  const real=Object.prototype.hasOwnProperty.call(U,u)&&U[u]===p;
+  let w=null;
+  if(real)w=u;
+  else if(!s){
+    const m=u.match(/^(\w*)'\s*(--|#)/);
+    if(m)w=Object.prototype.hasOwnProperty.call(U,m[1])?m[1]:"admin";
+    else if(taut.test(u)||taut.test(p))w="admin";
+  }
+  $("#sr").innerHTML=w
+    ?'<span class="'+(real?"ok":"bad")+'">Logged in as '+esc(w)+(real?"":" (BYPASSED without the password!)")+'</span>'
+    :'<span class="ok">Login failed</span>';
+};
+
+/* XSS (simulated outcome, comments always shown as plain text) */
+const xbad=/<\s*script|onerror\s*=|onload\s*=|javascript:/i;
+$("#xp").onclick=()=>{
+  const v=$("#xc").value,s=$("#xs").checked;
+  const d=document.createElement("div");d.textContent=v;$("#xl").append(d);
+  $("#xb").innerHTML=(!s&&xbad.test(v))
+    ?'<span class="bad">💥 VULNERABLE: on a real site this would run as a script in every visitor’s browser and could steal the session cookie (session=FAKE123, simulated)</span>'
+    :(s&&xbad.test(v)?'<span class="ok">Blocked: output is escaped and shown as plain text</span>':"");
+};
+
+/* RANSOMWARE (in-memory fake files) */
+const F={"report.docx":"Project report draft","results.xlsx":"Exam results sheet","photos.zip":"Holiday photos","notes.txt":"Lecture notes"};
+let cur={...F},bk=null,inf=false;
+const enc=t=>btoa(unescape(encodeURIComponent(t))).split("").reverse().join("");
+function rr(m){
+  $("#rf").innerHTML=Object.entries(cur).map(([k,v])=>"<pre>"+esc(k)+(inf?" 🔒":"")+"\n"+esc(inf?enc(v):v)+"</pre>").join("")
+   +(inf?'<pre class="bad">YOUR FILES ARE ENCRYPTED. Pay to get the key. (fake note)</pre>':"")
+   +(m?"<p>"+m+"</p>":"");
+}
+$("#rb").onclick=()=>{if(inf){rr("Too late: back up BEFORE the attack.");return}bk={...cur};rr("Backup saved (offline copy).")};
+$("#ri").onclick=()=>{inf=true;rr()};
+$("#rd").onclick=()=>rr("Cannot decrypt: the key stays with the attacker. Paying does not guarantee recovery.");
+$("#rs").onclick=()=>{
+  if(!bk){rr("No backup exists, the files are lost. Lesson: back up first.");return}
+  cur={...bk};inf=false;rr("Restored from backup. No ransom paid.");
+};
+$("#rx").onclick=()=>{cur={...F};bk=null;inf=false;rr()};
+rr();
+
+/* DoS (simulated server load) */
+const H=[];
+$("#dr").oninput=()=>$("#dv").textContent=$("#dr").value;
+setInterval(()=>{
+  const a=+$("#dr").value,l=$("#dl").checked,e=l?Math.min(a,5):a,t=10+e,ok=Math.min(1,60/t);
+  H.push(ok);if(H.length>24)H.shift();
+  $("#db").innerHTML=H.map(v=>'<i style="height:'+v*100+'%;'+(v<.7?"background:var(--bad)":"")+'"></i>').join("");
+  $("#dt").innerHTML="Server sees "+e+" attacker + 10 legit = "+t+" req/s (capacity 60)<br>Legit users served: <b class=\""+(ok<.7?"bad":"ok")+"\">"+Math.round(ok*100)+"%</b>"+(t>60?"<br>🚨 ALERT: traffic above capacity":"");
+},700);
+</script></body></html>
