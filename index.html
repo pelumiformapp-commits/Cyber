@@ -55,6 +55,16 @@ small{color:var(--mut)}
 <p id="xb"></p><pre id="xl"></pre>
 <div class="fix">🛡️ Fix: vulnerable code does el.innerHTML = comment. Safe code does el.textContent = comment. Also add a Content-Security-Policy and validate input.</div></section>
 
+<section id="net"><h3>📶 Network Lab</h3>
+<small>You are the attacker on the same Wi-Fi as the victim. This is a simulated capture, like Wireshark. Use sample credentials only.</small>
+<input type="text" id="nu" placeholder="victim username (e.g. student)">
+<input type="text" id="np" placeholder="victim password (e.g. pass123)">
+<label><input type="checkbox" id="nw" checked> Open public Wi-Fi (attacker is connected)</label><br>
+<label><input type="checkbox" id="nh"> Victim uses HTTPS</label><br>
+<button class="b go" id="ng">Send login and capture</button>
+<pre id="nl"></pre><pre id="nd"></pre>
+<div class="fix">🛡️ Fix: only log in over HTTPS (padlock), avoid open Wi-Fi or use a VPN, use WPA3 with client isolation, enable HSTS on the server.</div></section>
+
 <section id="ran"><h3>💻 Ransomware Lab</h3>
 <small>Disposable fake files only. Try infecting with and without a backup.</small>
 <div id="rf"></div>
@@ -76,7 +86,7 @@ Attacker rate: <b id="dv">0</b> req/s
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const mods=[["phish","🎣 Phishing"],["pass","🔐 Password"],["sqli","💉 SQLi"],["xss","🧪 XSS"],["ran","💻 Ransomware"],["dos","🚨 DoS"]];
+const mods=[["phish","🎣 Phishing"],["pass","🔐 Password"],["sqli","💉 SQLi"],["xss","🧪 XSS"],["net","📶 Network"],["ran","💻 Ransomware"],["dos","🚨 DoS"]];
 mods.forEach(([id,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.id=id;b.onclick=()=>show(id);$("#nav").append(b)});
 function show(id){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===id));
@@ -157,6 +167,30 @@ $("#xp").onclick=()=>{
   $("#xb").innerHTML=(!s&&xbad.test(v))
     ?'<span class="bad">💥 VULNERABLE: on a real site this would run as a script in every visitor’s browser and could steal the session cookie (session=FAKE123, simulated)</span>'
     :(s&&xbad.test(v)?'<span class="ok">Blocked: output is escaped and shown as plain text</span>':"");
+};
+
+/* NETWORK (simulated packet capture, nothing is really sniffed) */
+function hexenc(t){
+  let k=(Math.random()*255)|0,o=["17","03","03"];
+  for(const c of t+"............"){k=(k*31+c.charCodeAt(0)+7+((Math.random()*255)|0))&255;o.push(k.toString(16).padStart(2,"0"))}
+  return o.join(" ");
+}
+$("#ng").onclick=()=>{
+  const u=$("#nu").value||"student",p=$("#np").value||"pass123";
+  const https=$("#nh").checked,open=$("#nw").checked;
+  const body="user="+u+"&pass="+p;
+  if(!open){
+    $("#nl").textContent="Attacker capture: 0 packets.";
+    $("#nd").innerHTML='<span class="ok">WPA3 encrypts the Wi-Fi link and client isolation hides your traffic from other devices. The attacker sees nothing.</span>';
+    return;
+  }
+  const rows=["#  PROTO  INFO","1  TCP    victim -> portal  SYN","2  TCP    portal -> victim  SYN, ACK","3  TCP    victim -> portal  ACK"];
+  if(https)rows.push("4  TLS    victim -> portal  Client Hello","5  TLS    portal -> victim  Server Hello, Certificate","6  TLS    victim -> portal  Application Data");
+  else rows.push("4  HTTP   victim -> portal  POST /login");
+  $("#nl").textContent="Attacker capture (like Wireshark):\n"+rows.join("\n");
+  $("#nd").innerHTML=https
+    ?"Payload the attacker sees (encrypted TLS bytes):\n"+hexenc(body)+'\n<span class="ok">Password NOT readable. The attacker only learns which site you visited and roughly how much data.</span>'
+    :"Payload the attacker sees:\nPOST /login HTTP/1.1\nHost: portal.myuni.edu.ng\n\n"+esc(body)+'\n<span class="bad">💥 Username and password visible in plain text!</span>';
 };
 
 /* RANSOMWARE (in-memory fake files) */
